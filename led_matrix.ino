@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include "alphabet.h"
 
 #define ROW_1 A3
 #define ROW_2 A1
@@ -29,14 +30,12 @@ char colsPORTs[] = "CCBBDDDB";
 const byte colsPORTsValues[8] = {B00000100, B00000001, B00010000, B00000100, B00001000, B00100000, B10000000, B00000010};
 const byte colsPORTsValuesInverse[8] = {~B00000100, ~B00000001, ~B00010000, ~B00000100, ~B00001000, ~B00100000, ~B10000000, ~B00000010};
 
-const byte OK[2][8] = {
-  {0x7E, 0xE7, 0xC3, 0xC3, 0xC3, 0xC3, 0xE7, 0x7E}, // O
-  {0x61, 0x63, 0x66, 0x6C, 0x78, 0x6C, 0x66, 0x63}  // K
-};
-
-const byte inverseOK[2][8] = {
-  {0x81, 0x18, 0x3C, 0x3C, 0x3C, 0x3C, 0x18, 0x81}, // Inverse O
-  {0x9E, 0x9C, 0x99, 0x93, 0x87, 0x93, 0x99, 0x9C}  // Inverse K
+const byte hello[5][8]{
+  {0,0b11111111,0b11111111,0b00011000,0b00011000,0b00011000,0b11111111,0b11111111},           // H
+  {0,0b11011011,0b11011011,0b11011011,0b11011011,0b11011011,0b11111111,0b11111111},           // E
+  {0b00000011,0b00000011,0b00000011,0b00000011,0b00000011,0b00000011,0b11111111,0b11111111},  // L
+  {0b00000011,0b00000011,0b00000011,0b00000011,0b00000011,0b00000011,0b11111111,0b11111111},  // L
+  {0b01111110,0b11111111,0b11000011,0b11000011,0b11000011,0b11000011,0b11111111,0b01111110}   // O
 };
 
 const byte name[4][8] = {
@@ -45,6 +44,8 @@ const byte name[4][8] = {
   {0b01111111,0b11111111,0b11100000,0b11000000,0b11000000,0b11100000,0b11111111,0b01111111},  // C
   {0b11000011,0b11000011,0b11000011,0b11111111,0b11111111,0b11000011,0b11000011,0b11000011}	  // H
 };	
+
+extern byte alphabet[26][8];
 
 void setup() {
     Serial.begin(9600);
@@ -57,35 +58,59 @@ void setup() {
 }
 
 void loop() {
-  // displayMessage(OK, sizeof(OK)/sizeof(OK[0])); // OK
-  // displayMessage(inverseOK, sizeof(inverseOK)/sizeof(inverseOK[0])); // inverse OK
-  // displayMessage(name, sizeof(name)/sizeof(name[0])); // ZACH
-  // Serial.print(sizeof(OK));
-  displayMessage(OK);
-  displayMessage(inverseOK);
-  displayMessage(name);
-  
-  for(int row = 0; row < sizeof(OK)/sizeof(OK[0]); row++){ // Scrolls through letters in OK
-    scrollLetter(OK[row]);
-  }
-  delay(1000);
-  for(int row = 0; row < sizeof(name)/sizeof(name[0]); row++){ // Scrolls through letters in name, ZACH
-    scrollLetter(name[row]);
-  }
+  displayMessage(name, sizeof(name) / sizeof(name[0]));
+  scrollMessage(name, sizeof(name) / sizeof(name[0]));
   delay(1000);
 }
 
+// Implement DisplayMessage class
+// void DisplayMessage::displayMessage(byte message[][8]){
+//   int size = sizeof(message);
+//   for(int row = 0; row < size; row++){
+//     for (int i = 0; i < 125; i++) {
+//       displayLetter(message[row]);
+//       delay(1); // Short delay to avoid flickering
+//     }
+//   }
+//   delay(1000);
+// }
+
 // Displays custom message with each letter lasting a second (# of cols * loops = 125 * 8 = 1000 miliseconds)
-void displayMessage(byte message[][8]){
-  int size = sizeof(message);
+void displayMessage(byte message[][8], int size){
+  // int size = sizeof(message[0]);
   for(int row = 0; row < size; row++){
     for (int i = 0; i < 125; i++) {
       displayLetter(message[row]);
       delay(1); // Short delay to avoid flickering
     }
   }
-    delay(1000);
+  delay(1000);
+}
+
+// Scrolls message in an upwards pattern
+void scrollMessage(byte message[][8], int size){
+  // Scroll through each letter
+  for(int row = 0; row < size; row++){
+    scrollLetter(message[row]);
   }
+}
+
+// Scrolls letters in an upwards pattern
+void scrollLetter(byte letter[]){
+  byte tempLetter[9] = {0b00000000, letter[0], letter[1], letter[2], letter[3], letter[4], letter[5], letter[6], letter[7]}; // Include 0 at the beginning to add spacing between letters
+  byte temp;
+  for(int i = 0; i < 9; i++){ // Displays each sequential frame/pattern, 9 in total
+    for(int t = 0; t < 10; t++){ // Duration of each frame/pattern
+      displayLetter(tempLetter);
+      delay(1); // Short delay to avoid flickering
+    }
+    for(int row = 8; row > 0; row--){ // Shift rows to the left, creating a scrolling effect
+      temp = tempLetter[0]; // Store beginning row to wrap to the end
+      tempLetter[row] = tempLetter[row-1];
+      tempLetter[9] = temp; // Wrap beginning row to the end
+    }
+  }
+}
 
 // Displays a letter given a byte array representation of it
 void displayLetter(byte letter[]){
@@ -107,23 +132,6 @@ void displayLetter(byte letter[]){
       write("rows", row, "LOW");
     }
     write("columns", col, "HIGH");
-  }
-}
-
-// Scrolls letters in an upwards pattern
-void scrollLetter(byte letter[]){
-  byte tempLetter[9] = {0b00000000, letter[0], letter[1], letter[2], letter[3], letter[4], letter[5], letter[6], letter[7]}; // Include 0 at the beginning to add spacing between letters
-  byte temp;
-  for(int i = 0; i < 9; i++){ // Displays each sequential frame/pattern, 9 in total
-    for(int t = 0; t < 10; t++){ // Duration of each frame/pattern
-      displayLetter(tempLetter);
-      delay(1); // Short delay to avoid flickering
-    }
-    for(int row = 8; row > 0; row--){ // Shift rows to the left, creating a scrolling effect
-      temp = tempLetter[0]; // Store beginning row to wrap to the end
-      tempLetter[row] = tempLetter[row-1];
-      tempLetter[9] = temp; // Wrap beginning row to the end
-    }
   }
 }
 
